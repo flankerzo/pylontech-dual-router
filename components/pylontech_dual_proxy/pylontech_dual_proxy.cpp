@@ -25,6 +25,7 @@ void PylontechDualProxy::dump_config() {
   ESP_LOGCONFIG(TAG, "Pylontech V3.5 queued router");
   ESP_LOGCONFIG(TAG, "  Port role: %s", this->is_battery_port_ ? "battery" : "inverter");
   ESP_LOGCONFIG(TAG, "  Reply timeout: %lu ms", static_cast<unsigned long>(this->response_timeout_ms_));
+  ESP_LOGCONFIG(TAG, "  Request gap: %lu ms", static_cast<unsigned long>(this->request_gap_ms_));
 }
 
 void PylontechDualProxy::loop() {
@@ -365,6 +366,10 @@ void PylontechDualProxy::enqueue_request_(const std::string &request, PylontechD
 
 void PylontechDualProxy::start_next_request_() {
   if (!is_battery_port_ || pending_requests_.empty() || pending_requests_.front().sent_ms != 0) return;
+  if (request_gap_active_) {
+    if (millis() - request_gap_started_ms_ < request_gap_ms_) return;
+    request_gap_active_ = false;
+  }
   PendingRequest &pending = pending_requests_.front();
   if (pending.requester == nullptr) {
     pending_requests_.pop_front();
@@ -382,6 +387,8 @@ void PylontechDualProxy::expire_pending_request_() {
   ESP_LOGW(TAG, "Battery response timed out for CID2=%s; moving to next request.",
            pending_requests_.front().cid2.c_str());
   pending_requests_.pop_front();
+  request_gap_started_ms_ = millis();
+  request_gap_active_ = true;
 }
 
 void PylontechDualProxy::read_battery_frames_() {
@@ -410,6 +417,10 @@ void PylontechDualProxy::read_battery_frames_() {
             (publish_raw_frames_switch_ == nullptr || publish_raw_frames_switch_->state))
           last_battery_frame_sensor_->publish_state(response);
         last_battery_response_ = response;
+        // Non-blocking pause before another transmission, also after late
+        // replies or events. UART reception and inverter replies keep running.
+        request_gap_started_ms_ = millis();
+        request_gap_active_ = true;
         log_raw_frame_("battery->router", response);
         // In replies, CID2 is the return code (RTN), not the request command.
         // Error replies also complete the outstanding transaction. Broadcasting

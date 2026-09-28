@@ -97,6 +97,17 @@ command that the battery implements.
 
 ## Communication troubleshooting
 
+The battery port supports `request_gap: 50ms` (enabled in the example as a
+timing experiment). After a valid battery frame or a response timeout, the
+router waits this interval before transmitting the next queued request.
+The wait is non-blocking: reception and forwarding the current reply continue.
+Late replies received during the gap are discarded if no request is outstanding
+and restart the gap. `response_timeout: 1500ms` still measures the wait for a
+reply after transmission. Omit `request_gap` or set it to `0ms` for the previous
+behavior. This is a test value, not a confirmed JK BMS timing requirement;
+excessive gaps can increase queue delays. Rebuild with the updated component
+as well as the YAML setting.
+
 Pylontech replies use CID2 as a return code: `00` is success, while `01` through
 `06`, `90`, and `91` are protocol errors. Error replies complete the pending
 transaction and are forwarded unchanged only to its requesting inverter. They

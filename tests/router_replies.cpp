@@ -64,5 +64,41 @@ int main() {
   assert(TestProxy::pending_requests_.size() == 1);
   esphome::test_now += 1501; battery.loop();
   assert(TestProxy::pending_requests_.empty());
-  std::cout << "PASS: error ownership, queue release, success replies, orphan replies, events, invalid frames and timeout\n";
+  // A configured gap applies after timeout, success and error. Incoming
+  // requests cannot bypass it via enqueue_request_'s immediate start attempt.
+  battery.set_request_gap(50);
+  battery.tx.clear(); inv1.tx.clear(); inv2.tx.clear();
+  inv1.rx = request1; inv1.loop();
+  assert(battery.tx.empty());
+  esphome::test_now += 49; battery.loop();
+  assert(battery.tx.empty());
+  esphome::test_now += 1; battery.loop();
+  assert(battery.tx.size() == 1);
+  for (const auto &rtn : {"00", "02"}) {
+    battery.rx = frame(rtn); battery.loop();
+    assert(inv1.tx.back() == frame(rtn));  // Reply is not delayed.
+    const auto count = battery.tx.size();
+    inv1.rx = request1; inv1.loop();
+    inv2.rx = request2; inv2.loop();
+    esphome::test_now += 49; battery.loop();
+    assert(battery.tx.size() == count);
+    esphome::test_now += 1; battery.loop();
+    assert(battery.tx.size() == count + 1);
+    battery.rx = frame("00"); battery.loop();
+    esphome::test_now += 50; battery.loop();
+    assert(battery.tx.size() == count + 2);
+    battery.rx = frame("00"); battery.loop();
+    esphome::test_now += 50;
+    inv1.rx = request1; inv1.loop();
+  }
+  // Timer subtraction must remain correct across the millis() wrap.
+  esphome::test_now = UINT32_MAX - 20;
+  battery.rx = frame("02"); battery.loop();
+  const auto count = battery.tx.size();
+  inv2.rx = request2; inv2.loop();
+  esphome::test_now += 49; battery.loop();
+  assert(battery.tx.size() == count);
+  esphome::test_now += 1; battery.loop();
+  assert(battery.tx.size() == count + 1);
+  std::cout << "PASS: routing, timeouts, request gap, immediate replies and timer wrap\n";
 }

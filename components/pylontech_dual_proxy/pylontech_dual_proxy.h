@@ -60,6 +60,7 @@ class PylontechDualProxy : public Component, public uart::UARTDevice {
   void set_cache_ttl(uint32_t ttl) { this->cache_ttl_ms_ = ttl; }
   void set_battery_port(bool battery_port) { this->is_battery_port_ = battery_port; }
   void set_response_timeout(uint32_t timeout) { this->response_timeout_ms_ = timeout; }
+  void set_request_gap(uint32_t gap) { this->request_gap_ms_ = gap; }
   void set_link_timeout(uint32_t timeout) { this->link_timeout_ms_ = timeout; }
   void set_publish_raw_frames_switch(switch_::Switch *value) { this->publish_raw_frames_switch_ = value; }
   void set_publish_decoded_replies_switch(switch_::Switch *value) { this->publish_decoded_replies_switch_ = value; }
@@ -251,6 +252,9 @@ class PylontechDualProxy : public Component, public uart::UARTDevice {
   uint32_t request_dedupe_window_ms_{250};
   uint32_t event_dedupe_window_ms_{2000};
   uint32_t response_timeout_ms_{1500};
+  uint32_t request_gap_ms_{0};
+  uint32_t request_gap_started_ms_{0};
+  bool request_gap_active_{false};
   uint32_t link_timeout_ms_{60000};
   uint32_t last_link_activity_ms_{0};
   bool link_online_{false};

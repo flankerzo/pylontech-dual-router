@@ -71,6 +71,8 @@ pylontech_dual_proxy:
     uart_id: uart_battery
     battery_port: true
     response_timeout: 1500ms
+    # Trial pause after a battery frame or timeout before sending the next request.
+    request_gap: 50ms
     link_timeout: 60s
     online: battery_online
     cache_ttl: 2500ms

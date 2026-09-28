@@ -18,6 +18,7 @@ CONF_CACHE_TTL = "cache_ttl"
 CONF_UPDATE_TIMEOUT = "update_timeout"
 CONF_BATTERY_PORT = "battery_port"
 CONF_RESPONSE_TIMEOUT = "response_timeout"
+CONF_REQUEST_GAP = "request_gap"
 CONF_STATE_OF_CHARGE = "state_of_charge"
 CONF_VOLTAGE = "voltage"
 CONF_CURRENT = "current"
@@ -87,6 +88,7 @@ SENSOR_KEYS_SCHEMA = cv.Schema(
     {
         cv.Optional(CONF_BATTERY_PORT, default=False): cv.boolean,
         cv.Optional(CONF_RESPONSE_TIMEOUT, default="1500ms"): cv.positive_time_period_milliseconds,
+        cv.Optional(CONF_REQUEST_GAP, default="0ms"): cv.positive_time_period_milliseconds,
         cv.Optional(CONF_LINK_TIMEOUT, default="60s"): cv.positive_time_period_milliseconds,
         cv.Optional(CONF_ONLINE): cv.use_id(binary_sensor.BinarySensor),
         cv.Optional(CONF_PUBLISH_RAW_FRAMES): cv.use_id(switch.Switch),
@@ -295,6 +297,7 @@ async def to_code(config):
 
         cg.add(var.set_battery_port(conf[CONF_BATTERY_PORT]))
         cg.add(var.set_response_timeout(conf[CONF_RESPONSE_TIMEOUT]))
+        cg.add(var.set_request_gap(conf[CONF_REQUEST_GAP]))
         cg.add(var.set_link_timeout(conf[CONF_LINK_TIMEOUT]))
         cg.add(var.set_cache_ttl(conf[CONF_CACHE_TTL]))
         cg.add(var.set_update_timeout(conf[CONF_UPDATE_TIMEOUT]))
