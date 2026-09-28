@@ -411,18 +411,28 @@ void PylontechDualProxy::read_battery_frames_() {
           last_battery_frame_sensor_->publish_state(response);
         last_battery_response_ = response;
         log_raw_frame_("battery->router", response);
-        // The working inverter/emulator capture shows requests with CID2 61/63
-        // and their replies with CID2 00. A CID2 00 frame is therefore the next
-        // reply for the single outstanding transaction, not an event.
+        // In replies, CID2 is the return code (RTN), not the request command.
+        // Error replies also complete the outstanding transaction. Broadcasting
+        // them would deliver another inverter's error and stall this queue.
+        const std::string rtn = frame_cid2_(response);
+        const bool is_reply = rtn == "00" || rtn == "01" || rtn == "02" || rtn == "03" ||
+                              rtn == "04" || rtn == "05" || rtn == "06" || rtn == "90" || rtn == "91";
         if (!pending_requests_.empty() && pending_requests_.front().sent_ms != 0 &&
-            frame_cid2_(response) == "00") {
+            is_reply) {
           const PendingRequest pending = pending_requests_.front();
           pending_requests_.pop_front();
-          this->update_snapshot_from_battery_frame_(response, pending.cid2);
+          if (rtn == "00") {
+            this->update_snapshot_from_battery_frame_(response, pending.cid2);
+          } else {
+            ESP_LOGW(TAG, "Battery error RTN=%s for CID2=%s; returning to requesting inverter.",
+                     rtn.c_str(), pending.cid2.c_str());
+          }
           if (pending.requester != nullptr) {
             pending.requester->log_raw_frame_("router->inverter reply", response);
             pending.requester->write_str(response.c_str());
           }
+        } else if (is_reply) {
+          ESP_LOGW(TAG, "Discarding battery reply RTN=%s with no outstanding request.", rtn.c_str());
         } else {
           // An unmatched valid frame is treated as an unsolicited battery event/alarm.
           fan_out_battery_event_(response);

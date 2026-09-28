@@ -33,7 +33,9 @@ ESP32 S3 16R8 module, 3x waveshare RS485 isolated to uart.
 - queues requests from both inverter UARTs, sending one request at a time to the battery
 - preserves the live Pylontech address and checksum exactly (the separate physical UART identifies each inverter)
 - returns a matched reply only to the inverter that requested it
-- forwards unmatched, valid battery frames to both inverter UARTs as unsolicited events
+- routes success and protocol error replies only to the requesting inverter;
+  replies without an outstanding request are discarded
+- forwards other valid battery frames to both inverter UARTs as unsolicited events
 - logs raw Pylontech frames for diagnostics
 - has independent HA switches for raw frames and decoded reply text;
   both are off by default and restore their saved setting after reboot
@@ -92,6 +94,35 @@ individual readings for every battery cell.
 It does not inject its own polling requests. This means no additional traffic
 is added to the battery bus, while future inverters can still use any Pylontech
 command that the battery implements.
+
+## Communication troubleshooting
+
+Pylontech replies use CID2 as a return code: `00` is success, while `01` through
+`06`, `90`, and `91` are protocol errors. Error replies complete the pending
+transaction and are forwarded unchanged only to its requesting inverter. They
+must not be broadcast or leave the queue waiting until the reply timeout.
+
+The September 28 capture contained 21 `02` (checksum error) replies that the old
+router broadcast to both inverters, plus 26 timeouts and two queue-full warnings.
+For example, at 18:55:26.688 an error reply was broadcast twice, followed by a
+timeout at 18:55:28.184. It also contained malformed incoming inverter frames.
+The routing fix prevents this error-induced queue stall; it does not repair
+the underlying corruption or prove that UART timing and wiring are correct.
+
+The capture uses 115200 baud on the battery side and 9600 on the inverter sides;
+the example still uses 9600 on all ports. Retain the actual settings required by
+each connected device when deploying. GitHub-based builds need the updated
+component pushed to that source before flashing.
+
+Replies do not echo the original command or carry a transaction ID. A late
+reply arriving after a timeout while a new request is active can still be
+ambiguous; this change addresses the demonstrated error-reply handling bug.
+
+Native regression check (Windows, Python and Visual Studio Community C++ tools):
+`python tests/run_router_replies.py`. This compiles the actual router against
+minimal ESPHome stubs and checks reply ownership, error queue release, orphan
+replies, event forwarding, malformed replies, and timeout handling. It does not
+replace an ESPHome firmware build or hardware validation.
 
 ## Safety
 

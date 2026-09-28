@@ -62,8 +62,8 @@ uart:
 # ---------------------------------------------------------------------------
 # Battery port: listen to the real battery UART and inspect raw frames.
 # Inverter ports: each inverter is a separate master UART.
-# Any valid battery frame not matching the queued request is passed to both
-# inverter UARTs as an unsolicited alarm/event frame.
+# Success/error replies go only to the requesting inverter. Replies without
+# an outstanding request are discarded; other valid frames go to both ports.
 # HA update controls only rate-limit Home Assistant publishes. They never
 # delay, remove, or alter RS485 frames. Zero means every received response.
 pylontech_dual_proxy:
