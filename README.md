@@ -5,7 +5,7 @@
 
 This is an early development project. Validate it on a bench before connecting
 it to a live inverter/battery system.
-
+it works nicely after last update. works for two weeks without problem.
 
 
 This project is an ESPHome pattern for exposing one real Pylontech battery as two independent Pylontech UART interfaces for two inverter masters.
